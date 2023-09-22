@@ -1,0 +1,120 @@
+
+select
+*
+from `Covid_Dataset.CovidDeaths_refined`
+where continent is not null
+order by 3,4;
+
+select
+*
+from `Covid_Dataset.CovidVaccinations`
+where continent is not null
+order by 3,4;
+
+
+-------------select data that we will be using
+
+select location, date,population,total_cases,total_deaths
+from `Covid_Dataset.CovidDeaths_refined`
+where continent is not null
+order by 1,2;
+
+------looking at total cases vs total deaths
+------shows likelihood of dying if you get infected in your country
+
+select location, date,population,total_cases,total_deaths,
+(total_cases/population)*100 as DeathPercentage
+from `Covid_Dataset.CovidDeaths_refined`
+where continent is not null
+order by 1,2;
+
+---countries with highest infection rate compared to population----
+
+select location,population,MAX(total_cases) as highest_infection_count,MAX(total_cases/population)*100 as PercentPopulationInfected
+from `Covid_Dataset.CovidDeaths_refined`
+where continent is not null
+group by location,population
+order by PercentPopulationInfected;
+
+---countries with highest death count vs population -----
+select location,MAX(cast(total_deaths as int)) as TotalDeathcount,
+from `Covid_Dataset.CovidDeaths_refined`
+where continent is not null
+group by location
+order by TotalDeathcount desc;
+
+----Continent with highest death count per population
+select continent,MAX(cast(total_deaths as int)) as TotalDeathcount,
+from `Covid_Dataset.CovidDeaths_refined`
+where continent is not null
+group by continent
+order by TotalDeathcount desc;
+
+
+----Global Numbers
+
+--- Dates wise deaths Globally-----
+---Day wise-----
+select date,sum(new_cases) as total_Cases,sum(cast(new_deaths as int)) as total_Deaths,
+CASE
+    WHEN SUM(CAST(new_deaths AS int)) = 0 THEN 0
+    ELSE (SUM(new_deaths) / SUM(CAST(new_cases AS int))) * 100
+  END AS DeathPercentage
+from `Covid_Dataset.CovidDeaths_refined`
+where continent is not null
+group by date
+order by date,total_Cases;
+
+---overall global numbers----
+select sum(new_cases) as total_Cases,sum(cast(new_deaths as int)) as total_Deaths,
+CASE
+    WHEN SUM(CAST(new_deaths AS int)) = 0 THEN 0
+    ELSE (SUM(new_deaths) / SUM(CAST(new_cases AS int))) * 100
+  END AS DeathPercentage
+from `Covid_Dataset.CovidDeaths_refined`
+where continent is not null;
+
+-----joining tables total populations vs vaccinations Rolling_Numbers_NewVaccinations and Rolling_Numbers_NewVaccinations%----------
+select
+tbl.continent,
+location,
+tbl.date,
+population,
+tbl.new_vaccinations,
+RollingPeopleVaccinated,
+(RollingPeopleVaccinated/tbl.population)*100 as RollingPeopleVaccinated_percentage
+from
+(select
+CDR.continent as continent,CDR.location as location,CDR.date as date,CDR.population as population,COVAC.new_vaccinations as new_vaccinations,
+sum(COVAC.new_vaccinations)over(partition by CDR.location order by CDR.date,
+CDR.location) as RollingPeopleVaccinated
+from `Covid_Dataset.CovidDeaths_refined` as CDR
+join
+`Covid_Dataset.CovidVaccinations` as COVAC
+on CDR.location=COVAC.location and CDR.date=COVAC.date
+where CDR.continent is not null
+order by 1,2,3) as tbl;
+
+
+-----------------------------------View to store data for later visualization-------------
+
+
+CREATE OR Replace VIEW Covid_Dataset.PercentPopulationVaccinated AS
+SELECT
+  CDR.continent AS continent,
+  CDR.location AS location,
+  CDR.date AS date,
+  CDR.population AS population,
+  COVAC.new_vaccinations AS new_vaccinations,
+  SUM(COVAC.new_vaccinations) OVER (PARTITION BY CDR.location ORDER BY CDR.date, CDR.location) AS RollingPeopleVaccinated
+FROM
+  `Covid_Dataset.CovidDeaths_refined` AS CDR
+JOIN
+  `Covid_Dataset.CovidVaccinations` AS COVAC
+ON
+  CDR.location = COVAC.location
+  AND CDR.date = COVAC.date
+WHERE
+  CDR.continent IS NOT NULL
+ORDER BY
+  1, 2, 3;
