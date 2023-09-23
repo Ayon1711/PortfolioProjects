@@ -1,54 +1,119 @@
 
-select
-*
-from `Covid_Dataset.CovidDeaths_refined`
-where continent is not null
-order by 3,4;
+/*
 
-select
-*
-from `Covid_Dataset.CovidVaccinations`
-where continent is not null
-order by 3,4;
+Queries used for Tableau Project
 
+*/
 
--------------select data that we will be using
-
-select location, date,population,total_cases,total_deaths
-from `Covid_Dataset.CovidDeaths_refined`
-where continent is not null
+--1.
+Select SUM(new_cases) as total_cases, SUM(cast(new_deaths as int)) as total_deaths, SUM(cast(new_deaths as int))/SUM(New_Cases)*100 as DeathPercentage
+From `Covid_Dataset.CovidDeaths_refined`
+--Where location like '%states%'
+where continent is not null 
+--Group By date
 order by 1,2;
 
-------looking at total cases vs total deaths
-------shows likelihood of dying if you get infected in your country
+-- Just a double check based off the data provided
+-- numbers are extremely close so we will keep them - The Second includes "International"  Location
 
-select location, date,population,total_cases,total_deaths,
-(total_cases/population)*100 as DeathPercentage
-from `Covid_Dataset.CovidDeaths_refined`
-where continent is not null
+Select SUM(new_cases) as total_cases, SUM(cast(new_deaths as int)) as total_deaths,
+CASE
+    WHEN SUM(CAST(new_deaths AS int)) = 0 THEN 0
+    ELSE (SUM(new_deaths) / SUM(CAST(new_cases AS int))) * 100
+    END AS DeathPercentage
+From `Covid_Dataset.CovidDeaths_refined`
+--Where location like '%states%'
+where location = 'World'
+--Group By date
 order by 1,2;
+
+-- 2. 
+
+-- We take these out as they are not inluded in the above queries and want to stay consistent
+-- European Union is part of Europe
+
+
+Select location, SUM(cast(new_deaths as int)) as TotalDeathCount
+From `Covid_Dataset.CovidDeaths_refined`
+Where continent is null 
+and location not in ('World', 'European Union', 'International')
+Group by location
+order by TotalDeathCount desc;
+
+
+-- 3.
+
+Select Location, Population, MAX(total_cases) as HighestInfectionCount,  Max((total_cases/population))*100 as PercentPopulationInfected
+From `Covid_Dataset.CovidDeaths_refined`
+--Where location like '%states%'
+Group by Location, Population
+order by PercentPopulationInfected desc
+
+
+
+-- 4.
+
+
+Select Location, Population,date, MAX(total_cases) as HighestInfectionCount,  
+Max((total_cases/population))*100 as PercentPopulationInfected
+From `Covid_Dataset.CovidDeaths_refined`
+--Where location like '%states%'
+Group by Location, Population, date
+order by PercentPopulationInfected desc;
+
+
+
+
+-----------------------------------View to store data for later visualization-------------
+
+
+CREATE OR Replace VIEW Covid_Dataset.PercentPopulationVaccinated AS
+SELECT
+  CDR.continent AS continent,
+  CDR.location AS location,
+  CDR.date AS date,
+  CDR.population AS population,
+  COVAC.new_vaccinations AS new_vaccinations,
+  SUM(COVAC.new_vaccinations) OVER (PARTITION BY CDR.location ORDER BY CDR.date, CDR.location) AS RollingPeopleVaccinated
+FROM
+  `Covid_Dataset.CovidDeaths_refined` AS CDR
+JOIN
+  `Covid_Dataset.CovidVaccinations` AS COVAC
+ON
+  CDR.location = COVAC.location
+  AND CDR.date = COVAC.date
+WHERE
+  CDR.continent IS NOT NULL
+ORDER BY
+  1, 2, 3;
+
+
+
+
+
+
 
 ---countries with highest infection rate compared to population----
 
-select location,population,MAX(total_cases) as highest_infection_count,MAX(total_cases/population)*100 as PercentPopulationInfected
+select location,population,MAX(total_cases) as max_total_cases,MAX(total_cases/population)*100 as infection_rate_population
 from `Covid_Dataset.CovidDeaths_refined`
 where continent is not null
 group by location,population
-order by PercentPopulationInfected;
+order by infection_rate_population desc;
 
 ---countries with highest death count vs population -----
-select location,MAX(cast(total_deaths as int)) as TotalDeathcount,
+select location,MAX(cast(total_deaths as int)) as MAX_TotalDeathcount,
 from `Covid_Dataset.CovidDeaths_refined`
 where continent is not null
 group by location
-order by TotalDeathcount desc;
+order by MAX_TotalDeathcount desc;
 
-----Continent with highest death count per population
-select continent,MAX(cast(total_deaths as int)) as TotalDeathcount,
+----Continent with highest death count vs population
+select location,MAX(cast(total_deaths as int)) as MAX_TotalDeathcount,
 from `Covid_Dataset.CovidDeaths_refined`
-where continent is not null
-group by continent
-order by TotalDeathcount desc;
+where continent is null
+group by location
+order by MAX_TotalDeathcount desc;
 
 
 ----Global Numbers
