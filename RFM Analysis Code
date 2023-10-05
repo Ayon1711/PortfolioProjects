@@ -1,3 +1,4 @@
+--------------RFM Ranking-----------------------------------------------------------
 select
 customer_id,
 tbl.Recency_Score,
@@ -18,3 +19,19 @@ from
 group by _CustomerID
 order by _CustomerID) as tbl
 order by tbl.customer_id
+--------RFM Bucketing----------
+
+select 
+tbl.average_rfm_score as Average_rfm_bucket,
+count(customer_id) as customer_count,
+round(Sum(tbl.monetary_score),2) as total_revenue,
+round(Sum(tbl.monetary_score)/count(customer_id),2) as Avg_revenue_per_customer
+from 
+(select
+customer_id,
+monetary_score,
+concat(Recency_ranking,'-',Frequency_ranking,'-',Monetary_ranking) as RFM_CELL,
+round((Recency_ranking+Frequency_ranking+Monetary_ranking)/3) as average_rfm_score
+from `RFM.RFM_ranking`) as tbl
+group by Average_rfm_bucket
+order by tbl.average_rfm_score
