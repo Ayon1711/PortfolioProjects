@@ -1,0 +1,20 @@
+select
+customer_id,
+tbl.Recency_Score,
+tbl.frequency_score,
+tbl.monetary_score,
+NTILE(5)over(order by tbl.Recency_Score desc) as Recency_ranking,
+NTILE(5)over(order by tbl.frequency_score desc) as Frequency_ranking,
+NTILE(5)over(order by tbl.monetary_score desc) as Monetary_ranking
+from
+(select
+_CustomerID as customer_id,
+max(OrderDate) as most_recent_purchase,
+DATE_DIFF(DATE '2021-01-01',max(OrderDate),day) as Recency_Score,
+count(OrderNumber) as frequency_score,
+round(SUM((Unit_Price)-(Unit_Price*Discount_Applied)-(Unit_Cost)),2) as monetary_score,
+from 
+`RFM.Sales_order`
+group by _CustomerID
+order by _CustomerID) as tbl
+order by tbl.customer_id
