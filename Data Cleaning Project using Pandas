@@ -1,0 +1,27 @@
+
+
+import pandas as pd
+import numpy as np
+df=pd.read_csv('Pfizer_1.csv')
+df.columns
+df_melt=pd.melt(df,id_vars=['Date','Drug_Name','Parameter'],var_name='Time',value_name='Readings')
+df_pivot=df_melt.pivot(index=['Date','Drug_Name','Time'],columns='Parameter',values='Readings')
+df_pivot=df_pivot.reset_index()
+
+def avg_temp(x):
+  x['Average_Temperature']=x['Temperature'].mean()
+  return x
+
+df_final=df_pivot.groupby(['Drug_Name']).apply(avg_temp)
+
+def avg_pressure(y):
+  y['Average_Pressure']=y['Pressure'].mean()
+  return y
+
+#Ther are 26 NaN values before data cleaning
+df_final['Temperature'].fillna(df_final['Average_Temperature'],inplace=True)
+
+df_final['Pressure'].fillna(df_final['Average_Pressure'],inplace=True)
+
+
+Parameter Date 0 Drug_Name 0 Time 0 Pressure 0 Temperature 0 Average_Temperature 0 Average_Pressure 0
